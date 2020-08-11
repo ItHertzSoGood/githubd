@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# https://github.com/ItHertzSoGood/githubd
+# Place this in /usr/bin/githubd
+
+# ANSI Escape Color Codes
+BOLDBLUE='\033[1m\033[34m'
+BOLDWHITE='\033[0m\033[1m'
+RESET='\033[0m'
+
+# See if user is running as root
+if [ "$EUID" == 0 ]; then
+    printf "${BOLDBLUE}[githubd] ${BOLDWHITE}Do not run this script as root.${RESET}\n"
+    exit
+fi
+
+if [[ "$1" != "" ]]; then
+USER="$1"
+DATE=$(date +"%Y_%m_%d")
+TEMP_DIR="githubd_${USER}_${DATE}"
+BACKUP_FILE="${TEMP_DIR}.tgz"
+
+mkdir "$TEMP_DIR" && cd "$TEMP_DIR"
+curl -s https://api.github.com/users/${USER}/repos?type=owner | grep -Eo '"git_url": "[^"]+"' | awk '{print $2}' | xargs -n 1 git clone
+cd -
+tar zcf "$BACKUP_FILE" "$TEMP_DIR" && ./rclone --config r.conf -vvv copy "github_${USER}_${DATE}.tgz" gitbackup:/GitHub/Users/
+rm -rf "$TEMP_DIR"
+rm "githubd_${USER}_${DATE}.tgz"
+printf "${BOLDBLUE}[githubd] ${BOLDWHITE}Successfully cloned all repositories from user ${USER}.${RESET}\n"
+exit
+else
+printf "${BOLDBLUE}[githubd] ${BOLDWHITE}Please provide a username.${RESET}\n"
+printf "${BOLDBLUE}[githubd] ${BOLDWHITE}Example: \`githubd ItHertzSoGood\`.${RESET}\n"
+exit
+fi
